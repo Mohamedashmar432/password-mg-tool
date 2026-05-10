@@ -33,7 +33,7 @@ import {
   getBiometricCredentialInfo,
 } from '../../src/background/biometric-manager';
 import { wrapVaultKey } from '../../src/crypto/key-wrap';
-import { clearBiometricAuth, loadBiometricAuth } from '../../src/storage/auth-store';
+import { saveBiometricAuth, clearBiometricAuth, loadBiometricAuth } from '../../src/storage/auth-store';
 
 describe('biometric-manager', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -88,5 +88,38 @@ describe('biometric-manager', () => {
     expect(info).not.toBeNull();
     expect(info!.credentialId).toBeDefined();
     expect(info!.prfSalt).toBeDefined();
+  });
+
+  it('storeBiometricRegistration zeros prfOutput even if saveBiometricAuth fails', async () => {
+    const { zeroBuffer } = await import('../../src/background/memory-security');
+    vi.mocked(saveBiometricAuth).mockRejectedValueOnce(new Error('IDB error'));
+    const fakePrfOutput = new Uint8Array(32).buffer;
+    await expect(
+      storeBiometricRegistration({} as CryptoKey, fakePrfOutput, new Uint8Array([1]).buffer, new Uint8Array(32).buffer)
+    ).rejects.toThrow('IDB error');
+    expect(zeroBuffer).toHaveBeenCalledWith(fakePrfOutput);
+  });
+
+  it('getWrappedKey zeros prfOutput when no auth found', async () => {
+    const { zeroBuffer } = await import('../../src/background/memory-security');
+    vi.mocked(loadBiometricAuth).mockResolvedValueOnce(null);
+    const fakePrf = new Uint8Array(32).buffer;
+    await expect(getWrappedKey(fakePrf)).rejects.toThrow();
+    expect(zeroBuffer).toHaveBeenCalledWith(fakePrf);
+  });
+
+  it('getWrappedKey zeros prfOutput when biometric disabled', async () => {
+    const { zeroBuffer } = await import('../../src/background/memory-security');
+    vi.mocked(loadBiometricAuth).mockResolvedValueOnce({
+      id: 'biometric' as const,
+      credentialId: new Uint8Array([1]).buffer,
+      prfSalt: new Uint8Array(32).buffer,
+      wrappedVaultKey: new Uint8Array(60).buffer,
+      wrappedVaultIv: new Uint8Array(12).buffer,
+      biometricEnabled: false,
+    });
+    const fakePrf = new Uint8Array(32).buffer;
+    await expect(getWrappedKey(fakePrf)).rejects.toThrow('Biometric unlock disabled');
+    expect(zeroBuffer).toHaveBeenCalledWith(fakePrf);
   });
 });

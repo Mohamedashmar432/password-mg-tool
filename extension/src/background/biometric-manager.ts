@@ -12,33 +12,30 @@ export async function storeBiometricRegistration(
   credentialId: ArrayBuffer,
   prfSalt: ArrayBuffer,
 ): Promise<void> {
-  const { wrappedVaultKey, iv } = await wrapVaultKey(vaultKey, prfOutput);
-
-  await saveBiometricAuth({
-    id: 'biometric',
-    credentialId,
-    prfSalt,
-    wrappedVaultKey,
-    wrappedVaultIv: iv.buffer,
-    biometricEnabled: true,
-  });
-
-  zeroBuffer(prfOutput);
+  try {
+    const { wrappedVaultKey, iv } = await wrapVaultKey(vaultKey, prfOutput);
+    await saveBiometricAuth({
+      id: 'biometric',
+      credentialId,
+      prfSalt,
+      wrappedVaultKey,
+      wrappedVaultIv: iv.buffer as ArrayBuffer,
+      biometricEnabled: true,
+    });
+  } finally {
+    zeroBuffer(prfOutput);
+  }
 }
 
 export async function getWrappedKey(prfOutput: ArrayBuffer): Promise<CryptoKey> {
-  const auth = await loadBiometricAuth();
-  if (!auth) throw new Error('No biometric registration found');
-  if (!auth.biometricEnabled) throw new Error('Biometric unlock disabled');
-
-  const vaultKey = await unwrapVaultKey(
-    auth.wrappedVaultKey,
-    auth.wrappedVaultIv,
-    prfOutput,
-  );
-
-  zeroBuffer(prfOutput);
-  return vaultKey;
+  try {
+    const auth = await loadBiometricAuth();
+    if (!auth) throw new Error('No biometric registration found');
+    if (!auth.biometricEnabled) throw new Error('Biometric unlock disabled');
+    return await unwrapVaultKey(auth.wrappedVaultKey, auth.wrappedVaultIv, prfOutput);
+  } finally {
+    zeroBuffer(prfOutput);
+  }
 }
 
 export async function isBiometricEnrolled(): Promise<boolean> {
