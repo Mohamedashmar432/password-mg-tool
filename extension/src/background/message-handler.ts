@@ -148,11 +148,23 @@ export async function handleMessage(
     }
 
     case 'AUTOFILL_REQUEST': {
-      if (vaultManager.isLocked()) {
-        return { entries: [] };
-      }
       const p = payload as AutofillRequestPayload;
       const hostname = p.hostname.toLowerCase();
+
+      const riskLevel = getRiskLevel(hostname);
+      const session = (await loadSession()) ?? DEFAULT_SESSION;
+      const requiresBiometric =
+        riskLevel === 'high' ||
+        (session.requireAuthBeforeAutofill && !vaultManager.isLocked());
+
+      if (requiresBiometric && vaultManager.isLocked()) {
+        return { entries: [], requiresBiometric: true };
+      }
+
+      if (vaultManager.isLocked()) {
+        return { entries: [], requiresBiometric: false };
+      }
+
       const allEntries = vaultManager.getEntries();
       const matching = allEntries.filter(entry => {
         try {
@@ -164,12 +176,9 @@ export async function handleMessage(
       });
       return {
         entries: matching.map(({ id, username, password, url, site }) => ({
-          id,
-          username,
-          password,
-          url,
-          site,
+          id, username, password, url, site,
         })),
+        requiresBiometric: requiresBiometric && !vaultManager.isLocked(),
       };
     }
 

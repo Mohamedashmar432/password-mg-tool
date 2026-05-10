@@ -15,13 +15,36 @@ function getSafeHostname(): string | null {
   try { return new URL(window.location.href).hostname; } catch { return null; }
 }
 
+function showHighRiskNotice(): void {
+  const existing = document.querySelector('[data-zv-notice]');
+  if (existing) return;
+
+  const el = document.createElement('div');
+  el.setAttribute('data-zv-notice', '');
+  el.style.cssText = [
+    'position:fixed', 'top:16px', 'right:16px', 'z-index:2147483647',
+    'background:#1f2937', 'border:1px solid #f59e0b', 'border-radius:10px',
+    'padding:10px 14px', 'font-family:-apple-system,sans-serif',
+    'font-size:13px', 'color:#fbbf24', 'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
+    'max-width:280px', 'cursor:pointer',
+  ].join(';');
+  el.textContent = '🔒 ZeroVault: High-risk site — unlock vault first via the extension icon.';
+  el.addEventListener('click', () => el.remove());
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 8000);
+}
+
 async function queryAutofill(hostname: string): Promise<AutofillResponsePayload['entries']> {
   try {
     const msg: ExtensionMessage<AutofillRequestPayload> = {
       type: 'AUTOFILL_REQUEST',
       payload: { hostname },
     };
-    const resp = await chrome.runtime.sendMessage(msg) as { entries?: AutofillResponsePayload['entries'] } | null;
+    const resp = await chrome.runtime.sendMessage(msg) as { entries?: AutofillResponsePayload['entries']; requiresBiometric?: boolean } | null;
+    if (resp?.requiresBiometric && (resp?.entries?.length ?? 0) === 0) {
+      showHighRiskNotice();
+      return [];
+    }
     return resp?.entries ?? [];
   } catch {
     return [];
