@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { authenticateWithBiometric } from '../../crypto/webauthn.js';
+  import { bufToArr } from '../../utils/buffer.js';
 
   export let credentialId: ArrayBuffer;
   export let prfSalt: ArrayBuffer;
@@ -20,7 +21,7 @@
       const { prfOutput } = await authenticateWithBiometric(credentialId, prfSalt);
       const response = await chrome.runtime.sendMessage({
         type: 'BIOMETRIC_UNLOCK',
-        payload: { prfOutput },
+        payload: { prfOutput: bufToArr(prfOutput) },
       });
       if (response.success) {
         dispatch('unlocked');

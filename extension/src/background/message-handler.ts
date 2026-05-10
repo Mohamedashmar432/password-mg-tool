@@ -33,6 +33,7 @@ import {
   saveSession,
   DEFAULT_SESSION,
 } from '../storage/auth-store.js';
+import { arrToBuf, bufToArr } from '../utils/buffer.js';
 
 const KNOWN_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'AUTOFILL_REQUEST',
@@ -267,18 +268,20 @@ export async function handleMessage(
     }
 
     case 'REGISTER_BIOMETRIC': {
-      const p = payload as RegisterBiometricPayload;
+      // Payload fields arrive as number[] (ArrayBuffer doesn't survive sendMessage)
+      const p = payload as { prfOutput: number[]; credentialId: number[]; prfSalt: number[] };
       await vaultManager.registerBiometricForCurrentSession(
-        p.prfOutput,
-        p.credentialId,
-        p.prfSalt,
+        arrToBuf(p.prfOutput),
+        arrToBuf(p.credentialId),
+        arrToBuf(p.prfSalt),
       );
       return { success: true };
     }
 
     case 'BIOMETRIC_UNLOCK': {
-      const p = payload as BiometricUnlockPayload;
-      const success = await vaultManager.biometricUnlock(p.prfOutput);
+      // prfOutput arrives as number[] — convert back to ArrayBuffer
+      const p = payload as { prfOutput: number[] };
+      const success = await vaultManager.biometricUnlock(arrToBuf(p.prfOutput));
       if (success) await resetTimer(lockAndCancel);
       return { success, status: getStatus() };
     }
@@ -287,11 +290,12 @@ export async function handleMessage(
       const enrolled = await isBiometricEnrolled();
       const credInfo = enrolled ? await getBiometricCredentialInfo() : null;
       if (enrolled && credInfo) {
+        // Return as number[] so they survive the sendMessage boundary back to popup
         return {
           enrolled: true,
           biometricEnabled: true,
-          credentialId: credInfo.credentialId,
-          prfSalt: credInfo.prfSalt,
+          credentialId: bufToArr(credInfo.credentialId),
+          prfSalt: bufToArr(credInfo.prfSalt),
         };
       }
       return { enrolled: false, biometricEnabled: false };

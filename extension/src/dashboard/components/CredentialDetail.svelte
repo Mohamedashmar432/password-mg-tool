@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { VaultEntry } from '../../types/index.js';
   import { authenticateWithBiometric } from '../../crypto/webauthn.js';
+  import { bufToArr } from '../../utils/buffer.js';
 
   export let entry: VaultEntry;
   export let biometricEnrolled = false;
@@ -96,7 +97,7 @@
       const { prfOutput } = await authenticateWithBiometric(credentialId, prfSalt);
       const resp = await chrome.runtime.sendMessage({
         type: 'BIOMETRIC_UNLOCK',
-        payload: { prfOutput },
+        payload: { prfOutput: bufToArr(prfOutput) },
       });
       if (!resp?.success) {
         biometricError = 'Verification failed — try unlocking with master password first';

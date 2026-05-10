@@ -6,6 +6,7 @@
   import StatusBar from './components/StatusBar.svelte';
   import BiometricUnlockButton from './components/BiometricUnlockButton.svelte';
   import type { VaultEntry, VaultStatusPayload } from '../types/index.js';
+  import { arrToBuf } from '../utils/buffer.js';
 
   let isLocked   = true;
   let entries: VaultEntry[] = [];
@@ -81,8 +82,8 @@
       const bioResp = await chrome.runtime.sendMessage({ type: 'BIOMETRIC_STATUS', payload: {} });
       biometricEnrolled = bioResp.enrolled ?? false;
       if (biometricEnrolled) {
-        credentialId = bioResp.credentialId ?? null;
-        prfSalt = bioResp.prfSalt ?? null;
+        credentialId = bioResp.credentialId ? arrToBuf(bioResp.credentialId) : null;
+        prfSalt = bioResp.prfSalt ? arrToBuf(bioResp.prfSalt) : null;
       }
     } catch { /* biometric not available */ }
   });

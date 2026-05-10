@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { isPlatformAuthenticatorAvailable, registerBiometric } from '../../crypto/webauthn.js';
+  import { bufToArr } from '../../utils/buffer.js';
 
   let biometricSupported = false;
   let enrolled = false;
@@ -31,9 +32,9 @@
       const resp = await chrome.runtime.sendMessage({
         type: 'REGISTER_BIOMETRIC',
         payload: {
-          prfOutput: result.prfOutput,
-          credentialId: result.credentialId,
-          prfSalt: result.prfSalt,
+          prfOutput: bufToArr(result.prfOutput),
+          credentialId: bufToArr(result.credentialId),
+          prfSalt: bufToArr(result.prfSalt),
         },
       });
       if (resp?.error) {

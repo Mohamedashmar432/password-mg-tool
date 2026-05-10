@@ -17,6 +17,7 @@
     UnlockPayload,
     InitVaultPayload,
   } from '../types/index.js';
+  import { arrToBuf } from '../utils/buffer.js';
 
   type NavView = 'list' | 'generator' | 'backup' | 'import-export' | 'settings';
 
@@ -207,8 +208,8 @@
       const bioResp = await chrome.runtime.sendMessage({ type: 'BIOMETRIC_STATUS', payload: {} });
       biometricEnrolled = bioResp.enrolled ?? false;
       if (biometricEnrolled) {
-        credentialId = bioResp.credentialId ?? null;
-        prfSalt = bioResp.prfSalt ?? null;
+        credentialId = bioResp.credentialId ? arrToBuf(bioResp.credentialId) : null;
+        prfSalt = bioResp.prfSalt ? arrToBuf(bioResp.prfSalt) : null;
       }
     } catch { /* ignore */ }
   });
