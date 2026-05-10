@@ -13,11 +13,25 @@ import type {
   EncryptedVaultBlob,
   BulkAddEntriesPayload,
   VerifyMasterPasswordPayload,
+  RegisterBiometricPayload,
+  BiometricUnlockPayload,
+  UpdateSessionSettingsPayload,
+  SensitiveActionAuthPayload,
 } from '../types/index.js';
 import { loadVault, saveVault } from '../storage/vault.js';
 import { deriveKey, decryptVault } from '../crypto/index.js';
 import { vaultManager } from './vault-manager.js';
 import { resetTimer, cancelTimer } from './auto-lock.js';
+import {
+  isBiometricEnrolled,
+  getBiometricCredentialInfo,
+} from './biometric-manager.js';
+import { getRiskLevel } from './domain-risk.js';
+import {
+  loadSession,
+  saveSession,
+  DEFAULT_SESSION,
+} from '../storage/auth-store.js';
 
 const KNOWN_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'AUTOFILL_REQUEST',
@@ -37,6 +51,12 @@ const KNOWN_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'RESTORE_VAULT',
   'BULK_ADD_ENTRIES',
   'VERIFY_MASTER_PASSWORD',
+  'REGISTER_BIOMETRIC',
+  'BIOMETRIC_UNLOCK',
+  'BIOMETRIC_STATUS',
+  'SENSITIVE_ACTION_AUTH',
+  'GET_SESSION_SETTINGS',
+  'UPDATE_SESSION_SETTINGS',
 ]);
 
 export function isKnownMessageType(type: unknown): type is MessageType {
@@ -233,6 +253,62 @@ export async function handleMessage(
       const p = payload as VerifyMasterPasswordPayload;
       const valid = await vaultManager.verifyMasterPassword(p.masterPassword);
       return { valid };
+    }
+
+    case 'REGISTER_BIOMETRIC': {
+      const p = payload as RegisterBiometricPayload;
+      await vaultManager.registerBiometricForCurrentSession(
+        p.prfOutput,
+        p.credentialId,
+        p.prfSalt,
+      );
+      return { success: true };
+    }
+
+    case 'BIOMETRIC_UNLOCK': {
+      const p = payload as BiometricUnlockPayload;
+      const success = await vaultManager.biometricUnlock(p.prfOutput);
+      if (success) resetTimer(lockAndCancel);
+      return { success, status: getStatus() };
+    }
+
+    case 'BIOMETRIC_STATUS': {
+      const enrolled = await isBiometricEnrolled();
+      const credInfo = enrolled ? await getBiometricCredentialInfo() : null;
+      if (enrolled && credInfo) {
+        return {
+          enrolled: true,
+          biometricEnabled: true,
+          credentialId: credInfo.credentialId,
+          prfSalt: credInfo.prfSalt,
+        };
+      }
+      return { enrolled: false, biometricEnabled: false };
+    }
+
+    case 'SENSITIVE_ACTION_AUTH': {
+      const p = payload as SensitiveActionAuthPayload;
+      const session = (await loadSession()) ?? DEFAULT_SESSION;
+      const risk = p.hostname ? getRiskLevel(p.hostname) : 'low';
+      const required =
+        (p.action === 'view' && session.requireAuthBeforeReveal) ||
+        (p.action === 'copy' && session.requireAuthBeforeReveal) ||
+        p.action === 'export' ||
+        p.action === 'restore' ||
+        (p.action === 'autofill' && (session.requireAuthBeforeAutofill || risk === 'high'));
+      return { required };
+    }
+
+    case 'GET_SESSION_SETTINGS': {
+      const session = (await loadSession()) ?? DEFAULT_SESSION;
+      return session;
+    }
+
+    case 'UPDATE_SESSION_SETTINGS': {
+      const current = (await loadSession()) ?? DEFAULT_SESSION;
+      const updates = payload as UpdateSessionSettingsPayload;
+      await saveSession({ ...current, ...updates });
+      return { success: true };
     }
 
     case 'AUTOFILL_RESPONSE':
