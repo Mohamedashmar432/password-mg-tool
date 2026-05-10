@@ -1,12 +1,21 @@
-const INACTIVITY_MS = 15 * 60 * 1000;
-let timer: ReturnType<typeof setTimeout> | null = null;
+import { loadSession, DEFAULT_SESSION } from '../storage/auth-store.js';
 
-export function resetTimer(onLock: () => void): void {
-  if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(onLock, INACTIVITY_MS);
+let _timer: ReturnType<typeof setTimeout> | null = null;
+
+async function getTimeoutMs(): Promise<number> {
+  const session = await loadSession();
+  return session?.lockTimeout ?? DEFAULT_SESSION.lockTimeout;
+}
+
+export async function resetTimer(onLock: () => void): Promise<void> {
+  cancelTimer();
+  const ms = await getTimeoutMs();
+  _timer = setTimeout(onLock, ms);
 }
 
 export function cancelTimer(): void {
-  if (timer !== null) clearTimeout(timer);
-  timer = null;
+  if (_timer !== null) {
+    clearTimeout(_timer);
+    _timer = null;
+  }
 }

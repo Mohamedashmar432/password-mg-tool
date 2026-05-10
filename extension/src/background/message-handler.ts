@@ -92,7 +92,7 @@ export async function handleMessage(
       // Check if this is a "create new vault" scenario
       const success = await vaultManager.unlock(p.masterPassword);
       if (success) {
-        resetTimer(lockAndCancel);
+        await resetTimer(lockAndCancel);
       }
       return { success, status: getStatus() };
     }
@@ -123,7 +123,7 @@ export async function handleMessage(
       }
       const p = payload as AddEntryPayload;
       const entry = await vaultManager.addEntry(p.entry);
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return { entry };
     }
 
@@ -133,7 +133,7 @@ export async function handleMessage(
       }
       const p = payload as DeleteEntryPayload;
       await vaultManager.deleteEntry(p.id);
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return { success: true };
     }
 
@@ -143,7 +143,7 @@ export async function handleMessage(
       }
       const p = payload as UpdateEntryPayload;
       await vaultManager.updateEntry(p.id, p.updates);
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return { success: true };
     }
 
@@ -201,14 +201,14 @@ export async function handleMessage(
           password: p.password,
         });
       }
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return { success: true };
     }
 
     case 'INIT_VAULT': {
       const p = payload as InitVaultPayload;
       await vaultManager.initNewVault(p.masterPassword);
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return { success: true, status: getStatus() };
     }
 
@@ -234,7 +234,7 @@ export async function handleMessage(
         await saveVault(blob);
         // Unlock with the provided master password
         const success = await vaultManager.unlock(p.masterPassword);
-        if (success) resetTimer(lockAndCancel);
+        if (success) await resetTimer(lockAndCancel);
         return { success, status: getStatus() };
       } catch {
         return { success: false, error: 'Invalid backup or wrong master password' };
@@ -245,7 +245,7 @@ export async function handleMessage(
       if (vaultManager.isLocked()) throw new Error('Vault is locked');
       const p = payload as BulkAddEntriesPayload;
       const result = await vaultManager.bulkAddEntries(p.entries, p.skipDuplicates);
-      resetTimer(lockAndCancel);
+      await resetTimer(lockAndCancel);
       return result;
     }
 
@@ -268,7 +268,7 @@ export async function handleMessage(
     case 'BIOMETRIC_UNLOCK': {
       const p = payload as BiometricUnlockPayload;
       const success = await vaultManager.biometricUnlock(p.prfOutput);
-      if (success) resetTimer(lockAndCancel);
+      if (success) await resetTimer(lockAndCancel);
       return { success, status: getStatus() };
     }
 
