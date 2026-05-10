@@ -26,10 +26,11 @@ describe('PBKDF2 key derivation', () => {
     await expect(deriveKey('masterPw123!', salt)).resolves.toBeDefined();
   });
 
-  it('generates a non-extractable key', async () => {
+  it('generates an extractable AES-GCM key (required for biometric key wrapping)', async () => {
     const salt = generateSalt();
     const key = await deriveKey('masterPw123!', salt);
-    expect(key.extractable).toBe(false);
+    expect(key.extractable).toBe(true);
+    expect(key.algorithm.name).toBe('AES-GCM');
   });
 
   it('two derivations with the same password+salt produce equivalent keys (verified via encrypt/decrypt)', async () => {

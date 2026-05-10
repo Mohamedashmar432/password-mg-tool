@@ -94,10 +94,14 @@
     biometricError = '';
     try {
       const { prfOutput } = await authenticateWithBiometric(credentialId, prfSalt);
-      await chrome.runtime.sendMessage({
+      const resp = await chrome.runtime.sendMessage({
         type: 'BIOMETRIC_UNLOCK',
         payload: { prfOutput },
       });
+      if (!resp?.success) {
+        biometricError = 'Verification failed — try unlocking with master password first';
+        return;
+      }
       showBiometricModal = false;
       pendingAction?.();
       pendingAction = null;

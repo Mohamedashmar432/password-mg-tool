@@ -19,7 +19,7 @@ export async function deriveKey(masterPassword: string, salt: Uint8Array): Promi
     { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: HASH },
     keyMaterial,
     { name: 'AES-GCM', length: KEY_LENGTH },
-    false,
+    true,  // extractable: needed for wrapVaultKey to export raw bytes for biometric wrapping
     ['encrypt', 'decrypt']
   );
 }

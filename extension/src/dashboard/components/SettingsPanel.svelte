@@ -28,7 +28,7 @@
     statusMessage = '';
     try {
       const result = await registerBiometric(userEmail || 'zerovault-user');
-      await chrome.runtime.sendMessage({
+      const resp = await chrome.runtime.sendMessage({
         type: 'REGISTER_BIOMETRIC',
         payload: {
           prfOutput: result.prfOutput,
@@ -36,6 +36,10 @@
           prfSalt: result.prfSalt,
         },
       });
+      if (resp?.error) {
+        statusMessage = `Enrollment failed: ${resp.error}`;
+        return;
+      }
       enrolled = true;
       statusMessage = 'Windows Hello enrollment successful.';
     } catch (e) {
@@ -46,10 +50,8 @@
   }
 
   async function disableBiometric() {
-    await chrome.runtime.sendMessage({
-      type: 'UPDATE_SESSION_SETTINGS',
-      payload: { requireAuthBeforeAutofill: false, requireAuthBeforeReveal: false },
-    });
+    // Clear the stored biometric credential AND session settings
+    await chrome.runtime.sendMessage({ type: 'DISABLE_BIOMETRIC', payload: {} });
     enrolled = false;
     statusMessage = 'Biometric unlock disabled.';
   }

@@ -25,6 +25,7 @@ import { resetTimer, cancelTimer } from './auto-lock.js';
 import {
   isBiometricEnrolled,
   getBiometricCredentialInfo,
+  disableBiometric,
 } from './biometric-manager.js';
 import { getRiskLevel } from './domain-risk.js';
 import {
@@ -57,6 +58,7 @@ const KNOWN_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'SENSITIVE_ACTION_AUTH',
   'GET_SESSION_SETTINGS',
   'UPDATE_SESSION_SETTINGS',
+  'DISABLE_BIOMETRIC',
 ]);
 
 export function isKnownMessageType(type: unknown): type is MessageType {
@@ -317,6 +319,11 @@ export async function handleMessage(
       const current = (await loadSession()) ?? DEFAULT_SESSION;
       const updates = payload as UpdateSessionSettingsPayload;
       await saveSession({ ...current, ...updates });
+      return { success: true };
+    }
+
+    case 'DISABLE_BIOMETRIC': {
+      await disableBiometric();
       return { success: true };
     }
 
