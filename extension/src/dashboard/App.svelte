@@ -18,6 +18,7 @@
     InitVaultPayload,
   } from '../types/index.js';
   import { arrToBuf } from '../utils/buffer.js';
+  import BiometricUnlockButton from '../popup/components/BiometricUnlockButton.svelte';
 
   type NavView = 'list' | 'generator' | 'backup' | 'import-export' | 'settings';
 
@@ -33,6 +34,7 @@
   let biometricEnrolled = false;
   let credentialId: ArrayBuffer | null = null;
   let prfSalt: ArrayBuffer | null = null;
+  let showMasterPasswordDashboard = false;   // collapsed when biometric enrolled
   let masterPasswordInput = '';
   let unlockError = '';
   let unlockLoading = false;
@@ -290,41 +292,75 @@
               </button>
             </div>
           {:else}
-            <h2 class="text-lg font-semibold mb-4">Unlock Vault</h2>
-            {#if unlockError}
-              <div class="text-red-400 text-sm bg-red-900/20 border border-red-800/50 rounded p-3 mb-4">
-                {unlockError}
+            <!-- PRIMARY: Windows Hello (when enrolled) -->
+            {#if biometricEnrolled && credentialId && prfSalt && !showMasterPasswordDashboard}
+              <h2 class="text-lg font-semibold mb-1">Unlock Vault</h2>
+              <p class="text-sm text-gray-400 mb-4">Use Windows Hello to access your passwords</p>
+              <BiometricUnlockButton
+                {credentialId}
+                {prfSalt}
+                on:unlocked={async () => {
+                  isLocked = false;
+                  unlockError = '';
+                  await fetchEntries();
+                }}
+                on:error={(e) => { unlockError = e.detail.message; }}
+              />
+              <button
+                on:click={() => { showMasterPasswordDashboard = true; unlockError = ''; }}
+                class="w-full text-center text-gray-600 hover:text-gray-400 text-xs mt-3 py-1 transition-colors"
+              >
+                Use master password instead
+              </button>
+            {:else}
+              <!-- SECONDARY: Master password form -->
+              <h2 class="text-lg font-semibold mb-4">
+                {biometricEnrolled ? 'Master Password' : 'Unlock Vault'}
+              </h2>
+              {#if unlockError}
+                <div class="text-red-400 text-sm bg-red-900/20 border border-red-800/50 rounded p-3 mb-4">
+                  {unlockError}
+                </div>
+              {/if}
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="block text-sm text-gray-400 mb-1">Master Password</label>
+                  <input
+                    type="password"
+                    bind:value={masterPasswordInput}
+                    on:keydown={(e) => e.key === 'Enter' && handleUnlock()}
+                    placeholder="Enter your master password..."
+                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white
+                           placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1
+                           focus:ring-indigo-500 transition-colors"
+                    autocomplete="current-password"
+                  />
+                </div>
+                <button
+                  on:click={handleUnlock}
+                  disabled={unlockLoading}
+                  class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white
+                         font-medium py-2.5 rounded-lg transition-colors"
+                >
+                  {unlockLoading ? 'Unlocking...' : 'Unlock Vault'}
+                </button>
+                {#if biometricEnrolled}
+                  <button
+                    on:click={() => { showMasterPasswordDashboard = false; unlockError = ''; masterPasswordInput = ''; }}
+                    class="w-full text-indigo-400 hover:text-indigo-300 text-sm py-1 transition-colors text-center"
+                  >
+                    ← Back to Windows Hello
+                  </button>
+                {:else}
+                  <button
+                    on:click={() => { isCreatingVault = true; unlockError = ''; masterPasswordInput = ''; }}
+                    class="w-full text-gray-500 hover:text-gray-300 text-sm py-1 transition-colors"
+                  >
+                    First time? Create a new vault
+                  </button>
+                {/if}
               </div>
             {/if}
-            <div class="flex flex-col gap-3">
-              <div>
-                <label class="block text-sm text-gray-400 mb-1">Master Password</label>
-                <input
-                  type="password"
-                  bind:value={masterPasswordInput}
-                  on:keydown={(e) => e.key === 'Enter' && handleUnlock()}
-                  placeholder="Enter your master password..."
-                  class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white
-                         placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1
-                         focus:ring-indigo-500 transition-colors"
-                  autocomplete="current-password"
-                />
-              </div>
-              <button
-                on:click={handleUnlock}
-                disabled={unlockLoading}
-                class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white
-                       font-medium py-2.5 rounded-lg transition-colors"
-              >
-                {unlockLoading ? 'Unlocking...' : 'Unlock Vault'}
-              </button>
-              <button
-                on:click={() => { isCreatingVault = true; unlockError = ''; masterPasswordInput = ''; }}
-                class="w-full text-gray-500 hover:text-gray-300 text-sm py-1 transition-colors"
-              >
-                First time? Create a new vault
-              </button>
-            </div>
           {/if}
         </div>
       </div>

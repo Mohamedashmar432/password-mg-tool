@@ -54,7 +54,8 @@ export type MessageType =
   | 'SENSITIVE_ACTION_AUTH'
   | 'GET_SESSION_SETTINGS'
   | 'UPDATE_SESSION_SETTINGS'
-  | 'DISABLE_BIOMETRIC';
+  | 'DISABLE_BIOMETRIC'
+  | 'OPEN_POPUP';
 
 export interface ExtensionMessage<T = unknown> {
   type: MessageType;

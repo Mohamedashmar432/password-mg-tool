@@ -15,34 +15,130 @@ function getSafeHostname(): string | null {
   try { return new URL(window.location.href).hostname; } catch { return null; }
 }
 
+const BIOMETRIC_NOTIFICATION_STYLES = `
+  .wrap {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 292px;
+    background: #1e1b4b;
+    border: 1px solid #6366f1;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.65);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    color: #e0e7ff;
+    overflow: hidden;
+    z-index: 2147483647;
+    animation: zv-slide 0.2s ease-out;
+  }
+  @keyframes zv-slide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 13px 0;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #a5b4fc;
+    letter-spacing: 0.02em;
+  }
+  .z-icon {
+    width: 20px; height: 20px;
+    background: #4f46e5;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff;
+  }
+  .close {
+    background: none; border: none; cursor: pointer;
+    color: #6366f1; font-size: 18px; line-height: 1;
+    padding: 2px 5px; border-radius: 4px;
+    transition: color 0.12s, background 0.12s;
+  }
+  .close:hover { color: #e0e7ff; background: #312e81; }
+  .body { padding: 8px 13px 13px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #312e81; border-radius: 5px;
+    padding: 2px 7px; font-size: 10px; font-weight: 700;
+    color: #c7d2fe; margin-bottom: 7px; letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .msg {
+    font-size: 12px; color: #a5b4fc;
+    margin-bottom: 11px; line-height: 1.4;
+  }
+  .btn {
+    width: 100%; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: #4f46e5; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s; letter-spacing: 0.01em;
+  }
+  .btn:hover { background: #4338ca; }
+  .btn-icon { font-size: 14px; }
+  .progress { height: 2px; background: #312e81; }
+  .bar {
+    height: 100%; background: #6366f1;
+    animation: shrink 30s linear forwards;
+  }
+  @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+`;
+
 function showBiometricHint(highRisk: boolean): void {
-  const existing = document.querySelector('[data-zv-notice]');
-  if (existing) return;
+  document.querySelector('[data-zv-notice]')?.remove();
 
-  const el = document.createElement('div');
-  el.setAttribute('data-zv-notice', '');
-  el.style.cssText = [
-    'position:fixed', 'top:16px', 'right:16px', 'z-index:2147483647',
-    'background:#1e1b4b', 'border:1px solid #6366f1', 'border-radius:10px',
-    'padding:10px 14px', 'font-family:-apple-system,sans-serif',
-    'font-size:13px', 'color:#e0e7ff', 'box-shadow:0 4px 20px rgba(0,0,0,0.6)',
-    'max-width:260px', 'cursor:pointer', 'display:flex', 'align-items:center', 'gap:8px',
-  ].join(';');
+  const host = document.createElement('div');
+  host.setAttribute('data-zv-notice', '');
+  const shadow = host.attachShadow({ mode: 'closed' });
 
-  const icon = document.createElement('span');
-  icon.textContent = '🔐';
-  icon.style.cssText = 'font-size:16px;flex-shrink:0';
+  const badge = highRisk ? '⚠ High-risk site' : '🔐 Credentials detected';
+  const msg = highRisk
+    ? 'Banking/crypto site — click below to autofill securely'
+    : 'Saved password found for this site';
 
-  const text = document.createElement('span');
-  text.style.cssText = 'line-height:1.4';
-  const headline = highRisk ? 'High-risk site' : 'ZeroVault';
-  text.innerHTML = `<strong style="color:#a5b4fc">${headline}</strong><br><span style="font-size:11px;color:#c7d2fe">Click the ZeroVault icon → Windows Hello to autofill</span>`;
+  shadow.innerHTML = `
+    <style>${BIOMETRIC_NOTIFICATION_STYLES}</style>
+    <div class="wrap">
+      <div class="header">
+        <div class="brand"><div class="z-icon">Z</div>ZeroVault</div>
+        <button class="close" id="x">&#10005;</button>
+      </div>
+      <div class="body">
+        <div class="badge">${badge}</div>
+        <div class="msg">${msg}</div>
+        <button class="btn" id="fill">
+          <span class="btn-icon">🔑</span>
+          Unlock &amp; Fill with Windows Hello
+        </button>
+      </div>
+      <div class="progress"><div class="bar"></div></div>
+    </div>
+  `;
 
-  el.appendChild(icon);
-  el.appendChild(text);
-  el.addEventListener('click', () => el.remove());
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 10_000);
+  const dismiss = (): void => { clearTimeout(timer); host.remove(); };
+
+  shadow.getElementById('x')?.addEventListener('click', dismiss);
+  shadow.getElementById('fill')?.addEventListener('click', async () => {
+    try {
+      await chrome.runtime.sendMessage({ type: 'OPEN_POPUP', payload: {} });
+    } catch { /* ignore */ }
+    dismiss();
+  });
+
+  document.body.appendChild(host);
+  const timer = setTimeout(dismiss, 30_000);
 }
 
 async function queryAutofill(hostname: string): Promise<AutofillResponsePayload['entries']> {

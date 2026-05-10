@@ -60,6 +60,7 @@ const KNOWN_MESSAGE_TYPES: ReadonlySet<MessageType> = new Set<MessageType>([
   'GET_SESSION_SETTINGS',
   'UPDATE_SESSION_SETTINGS',
   'DISABLE_BIOMETRIC',
+  'OPEN_POPUP',
 ]);
 
 export function isKnownMessageType(type: unknown): type is MessageType {
@@ -332,6 +333,16 @@ export async function handleMessage(
 
     case 'DISABLE_BIOMETRIC': {
       await disableBiometric();
+      return { success: true };
+    }
+
+    case 'OPEN_POPUP': {
+      // chrome.action.openPopup() available in Chrome 127+; silently no-op on older versions
+      try {
+        if (typeof (chrome.action as { openPopup?: () => Promise<void> }).openPopup === 'function') {
+          await (chrome.action as { openPopup: () => Promise<void> }).openPopup();
+        }
+      } catch { /* not available or tab not focused */ }
       return { success: true };
     }
 
