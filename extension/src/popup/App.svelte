@@ -4,6 +4,7 @@
   import QuickList from './components/QuickList.svelte';
   import Generator from './components/Generator.svelte';
   import StatusBar from './components/StatusBar.svelte';
+  import BiometricUnlockButton from './components/BiometricUnlockButton.svelte';
   import type { VaultEntry, VaultStatusPayload } from '../types/index.js';
 
   let isLocked   = true;
@@ -15,6 +16,11 @@
   // Active tab info for domain matching
   let activeTabId: number | null = null;
   let activeHostname: string | null = null;
+
+  // Biometric unlock state
+  let biometricEnrolled = false;
+  let credentialId: ArrayBuffer | null = null;
+  let prfSalt: ArrayBuffer | null = null;
 
   async function fetchStatus(): Promise<void> {
     try {
@@ -70,6 +76,15 @@
 
   onMount(async () => {
     await Promise.all([fetchStatus(), getActiveTab()]);
+    // Check biometric enrollment
+    try {
+      const bioResp = await chrome.runtime.sendMessage({ type: 'BIOMETRIC_STATUS', payload: {} });
+      biometricEnrolled = bioResp.enrolled ?? false;
+      if (biometricEnrolled) {
+        credentialId = bioResp.credentialId ?? null;
+        prfSalt = bioResp.prfSalt ?? null;
+      }
+    } catch { /* biometric not available */ }
   });
 </script>
 
@@ -106,7 +121,20 @@
     {:else if error}
       <div class="px-4 py-3 text-red-400 text-xs bg-red-900/20 rounded m-3">{error}</div>
     {:else if isLocked}
-      <div class="px-4 py-3">
+      <div class="px-4 py-3 flex flex-col gap-3">
+        {#if biometricEnrolled && credentialId && prfSalt}
+          <BiometricUnlockButton
+            {credentialId}
+            {prfSalt}
+            on:unlocked={handleUnlock}
+            on:error={() => {}}
+          />
+          <div class="relative flex items-center py-1">
+            <div class="flex-grow border-t border-gray-600"></div>
+            <span class="mx-3 text-xs text-gray-500">or</span>
+            <div class="flex-grow border-t border-gray-600"></div>
+          </div>
+        {/if}
         <UnlockForm on:unlock={handleUnlock} />
       </div>
     {:else}
