@@ -5,6 +5,7 @@
   import PasswordGenerator from './components/PasswordGenerator.svelte';
   import BackupPanel from './components/BackupPanel.svelte';
   import ImportExportPanel from './components/ImportExportPanel.svelte';
+  import SettingsPanel from './components/SettingsPanel.svelte';
   import SearchBar from './components/SearchBar.svelte';
   import EditModal from './components/EditModal.svelte';
   import type {
@@ -17,7 +18,7 @@
     InitVaultPayload,
   } from '../types/index.js';
 
-  type NavView = 'list' | 'generator' | 'backup' | 'import-export';
+  type NavView = 'list' | 'generator' | 'backup' | 'import-export' | 'settings';
 
   let isLocked = true;
   let entries: VaultEntry[] = [];
@@ -28,6 +29,9 @@
   let currentView: NavView = 'list';
   let loading = true;
   let error = '';
+  let biometricEnrolled = false;
+  let credentialId: ArrayBuffer | null = null;
+  let prfSalt: ArrayBuffer | null = null;
   let masterPasswordInput = '';
   let unlockError = '';
   let unlockLoading = false;
@@ -196,8 +200,17 @@
     showEdit = true;
   }
 
-  onMount(() => {
+  onMount(async () => {
     fetchStatus();
+    // Load biometric status
+    try {
+      const bioResp = await chrome.runtime.sendMessage({ type: 'BIOMETRIC_STATUS', payload: {} });
+      biometricEnrolled = bioResp.enrolled ?? false;
+      if (biometricEnrolled) {
+        credentialId = bioResp.credentialId ?? null;
+        prfSalt = bioResp.prfSalt ?? null;
+      }
+    } catch { /* ignore */ }
   });
 </script>
 
@@ -375,6 +388,13 @@
           >
             Import / Export
           </button>
+          <button
+            on:click={() => { currentView = 'settings'; }}
+            class="text-left px-4 py-2.5 text-sm transition-colors
+                   {currentView === 'settings' ? 'text-white bg-indigo-600/20 border-r-2 border-indigo-500' : 'text-gray-400 hover:text-white hover:bg-gray-700'}"
+          >
+            Settings
+          </button>
           <div class="mt-auto px-4 py-2 text-xs text-gray-600">
             {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
           </div>
@@ -402,6 +422,9 @@
               {#if selectedEntry}
                 <CredentialDetail
                   entry={selectedEntry}
+                  {biometricEnrolled}
+                  {credentialId}
+                  {prfSalt}
                   on:edit={handleEditEntry}
                   on:delete={handleDeleteEntry}
                 />
@@ -428,6 +451,10 @@
           {:else if currentView === 'import-export'}
             <div class="flex-1 overflow-y-auto">
               <ImportExportPanel {entries} on:imported={fetchEntries} />
+            </div>
+          {:else if currentView === 'settings'}
+            <div class="flex-1 overflow-y-auto p-6">
+              <SettingsPanel />
             </div>
           {/if}
         </main>
