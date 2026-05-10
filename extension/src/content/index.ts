@@ -15,7 +15,7 @@ function getSafeHostname(): string | null {
   try { return new URL(window.location.href).hostname; } catch { return null; }
 }
 
-function showHighRiskNotice(): void {
+function showBiometricHint(highRisk: boolean): void {
   const existing = document.querySelector('[data-zv-notice]');
   if (existing) return;
 
@@ -23,15 +23,26 @@ function showHighRiskNotice(): void {
   el.setAttribute('data-zv-notice', '');
   el.style.cssText = [
     'position:fixed', 'top:16px', 'right:16px', 'z-index:2147483647',
-    'background:#1f2937', 'border:1px solid #f59e0b', 'border-radius:10px',
+    'background:#1e1b4b', 'border:1px solid #6366f1', 'border-radius:10px',
     'padding:10px 14px', 'font-family:-apple-system,sans-serif',
-    'font-size:13px', 'color:#fbbf24', 'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
-    'max-width:280px', 'cursor:pointer',
+    'font-size:13px', 'color:#e0e7ff', 'box-shadow:0 4px 20px rgba(0,0,0,0.6)',
+    'max-width:260px', 'cursor:pointer', 'display:flex', 'align-items:center', 'gap:8px',
   ].join(';');
-  el.textContent = '🔒 ZeroVault: High-risk site — unlock vault first via the extension icon.';
+
+  const icon = document.createElement('span');
+  icon.textContent = '🔐';
+  icon.style.cssText = 'font-size:16px;flex-shrink:0';
+
+  const text = document.createElement('span');
+  text.style.cssText = 'line-height:1.4';
+  const headline = highRisk ? 'High-risk site' : 'ZeroVault';
+  text.innerHTML = `<strong style="color:#a5b4fc">${headline}</strong><br><span style="font-size:11px;color:#c7d2fe">Click the ZeroVault icon → Windows Hello to autofill</span>`;
+
+  el.appendChild(icon);
+  el.appendChild(text);
   el.addEventListener('click', () => el.remove());
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 8000);
+  setTimeout(() => el.remove(), 10_000);
 }
 
 async function queryAutofill(hostname: string): Promise<AutofillResponsePayload['entries']> {
@@ -40,11 +51,19 @@ async function queryAutofill(hostname: string): Promise<AutofillResponsePayload[
       type: 'AUTOFILL_REQUEST',
       payload: { hostname },
     };
-    const resp = await chrome.runtime.sendMessage(msg) as { entries?: AutofillResponsePayload['entries']; requiresBiometric?: boolean } | null;
-    if (resp?.requiresBiometric && (resp?.entries?.length ?? 0) === 0) {
-      showHighRiskNotice();
+    const resp = await chrome.runtime.sendMessage(msg) as {
+      entries?: AutofillResponsePayload['entries'];
+      requiresBiometric?: boolean;
+      vaultLocked?: boolean;
+      isHighRisk?: boolean;
+    } | null;
+
+    // Vault is locked and biometric is enrolled — show hint to open popup for 1-tap fill
+    if (resp?.vaultLocked && resp?.requiresBiometric) {
+      showBiometricHint(resp.isHighRisk === true);
       return [];
     }
+
     return resp?.entries ?? [];
   } catch {
     return [];

@@ -154,18 +154,13 @@ export async function handleMessage(
       const p = payload as AutofillRequestPayload;
       const hostname = p.hostname.toLowerCase();
 
-      const riskLevel = getRiskLevel(hostname);
-      const session = (await loadSession()) ?? DEFAULT_SESSION;
-      const requiresBiometric =
-        riskLevel === 'high' ||
-        (session.requireAuthBeforeAutofill && !vaultManager.isLocked());
-
-      if (requiresBiometric && vaultManager.isLocked()) {
-        return { entries: [], requiresBiometric: true };
-      }
-
+      // If vault is locked, return immediately — no entries available.
+      // Signal requiresBiometric so the content script shows a helpful prompt
+      // when biometric is enrolled (any domain, not just high-risk).
       if (vaultManager.isLocked()) {
-        return { entries: [], requiresBiometric: false };
+        const enrolled = await isBiometricEnrolled();
+        const isHighRisk = getRiskLevel(hostname) === 'high';
+        return { entries: [], requiresBiometric: enrolled, vaultLocked: true, isHighRisk };
       }
 
       const allEntries = vaultManager.getEntries();
@@ -177,11 +172,20 @@ export async function handleMessage(
           return entry.site.toLowerCase().includes(hostname);
         }
       });
+
+      // Vault is unlocked — check if sensitive auth is required before returning passwords
+      const riskLevel = getRiskLevel(hostname);
+      const session = (await loadSession()) ?? DEFAULT_SESSION;
+      const requiresBiometric =
+        riskLevel === 'high' ||
+        (session.requireAuthBeforeAutofill === true);
+
       return {
         entries: matching.map(({ id, username, password, url, site }) => ({
           id, username, password, url, site,
         })),
-        requiresBiometric: requiresBiometric && !vaultManager.isLocked(),
+        requiresBiometric,
+        vaultLocked: false,
       };
     }
 
