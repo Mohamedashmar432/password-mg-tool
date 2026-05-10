@@ -1,6 +1,7 @@
 import { deriveKey, generateSalt, encryptVault, decryptVault } from '../crypto/index.js';
 import { saveVault, loadVault } from '../storage/vault.js';
 import type { VaultEntry, DecryptedVault } from '../types/index.js';
+import { storeBiometricRegistration, getWrappedKey } from './biometric-manager.js';
 
 // Module-scope vault state — never persisted, lives only in service worker memory
 let _vault: DecryptedVault | null = null;
@@ -155,5 +156,34 @@ export const vaultManager = {
     } catch {
       return false;
     }
+  },
+
+  // Called after successful biometric auth in popup/dashboard — prfOutput zeroed inside getWrappedKey
+  async biometricUnlock(prfOutput: ArrayBuffer): Promise<boolean> {
+    try {
+      const blob = await loadVault();
+      if (!blob) return false;
+      const key = await getWrappedKey(prfOutput); // zeroes prfOutput in finally
+      const saltBytes = Uint8Array.from(atob(blob.salt), c => c.charCodeAt(0));
+      const vault = await decryptVault(blob, key);
+      _vault = vault;
+      _key = key;
+      _salt = saltBytes;
+      _lastActivity = Date.now();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // Wraps current in-memory vault key with PRF output and persists the wrapped key.
+  // Must be called while vault is unlocked (after master password login).
+  async registerBiometricForCurrentSession(
+    prfOutput: ArrayBuffer,
+    credentialId: ArrayBuffer,
+    prfSalt: ArrayBuffer,
+  ): Promise<void> {
+    if (!_key) throw new Error('Vault must be unlocked before registering biometric');
+    await storeBiometricRegistration(_key, prfOutput, credentialId, prfSalt);
   },
 };
