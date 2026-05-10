@@ -1,5 +1,12 @@
 export { deriveKey, generateSalt } from './kdf.js';
 export { encryptVault, decryptVault } from './aes.js';
+export {
+  isPlatformAuthenticatorAvailable,
+  registerBiometric,
+  authenticateWithBiometric,
+  type BiometricRegistrationResult,
+  type BiometricAuthResult,
+} from './webauthn.js';
 import type { GeneratorOptions } from '../types/index.js';
 
 function fisherYatesShuffle(arr: string[]): string[] {
