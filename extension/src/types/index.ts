@@ -121,6 +121,8 @@ export interface DetectedForm {
 
 // --- Biometric / WebAuthn ---
 
+// Stored after biometric enrollment: credentialId identifies the platform authenticator,
+// prfSalt + WebAuthn PRF output → wrapping key → wrappedVaultKey (AES-GCM encrypted vault key).
 export interface BiometricAuth {
   id: 'biometric';
   credentialId: ArrayBuffer;
@@ -140,6 +142,7 @@ export interface SessionData {
 
 export type DomainRiskLevel = 'high' | 'medium' | 'low';
 
+// prfOutput comes from WebAuthn PRF extension (popup); credentialId and prfSalt stored for future authentications.
 export interface RegisterBiometricPayload {
   prfOutput: ArrayBuffer;
   credentialId: ArrayBuffer;
@@ -150,12 +153,9 @@ export interface BiometricUnlockPayload {
   prfOutput: ArrayBuffer;
 }
 
-export interface BiometricStatusPayload {
-  enrolled: boolean;
-  biometricEnabled: boolean;
-  credentialId?: ArrayBuffer;
-  prfSalt?: ArrayBuffer;
-}
+export type BiometricStatusPayload =
+  | { enrolled: true; biometricEnabled: boolean; credentialId: ArrayBuffer; prfSalt: ArrayBuffer }
+  | { enrolled: false; biometricEnabled: boolean };
 
 export interface SensitiveActionAuthPayload {
   action: 'view' | 'copy' | 'export' | 'restore' | 'autofill';
