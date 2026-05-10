@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "mcp__plugin_context-mode_context-mode__ctx_index",
+      "Bash(dir \"C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\")",
+      "Bash(dir C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\\\\extension\\\\src *)",
+      "Bash(dir C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\\\\extension\\\\src\\\\popup *)",
+      "Bash(dir C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\\\\extension\\\\src\\\\dashboard *)",
+      "Bash(dir C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\\\\extension\\\\src\\\\dashboard\\\\components *)",
+      "Bash(dir \"C:\\\\Users\\\\MohamedAshmar\\\\playground\\\\password_mg_tool\\\\extension\")"
+    ]
+  }
+}

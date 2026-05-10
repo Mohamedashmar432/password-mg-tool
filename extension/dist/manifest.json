@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "ZeroVault",
+  "version": "1.0.0",
+  "description": "Zero-knowledge password manager",
+  "minimum_chrome_version": "101",
+  "permissions": ["storage", "tabs", "activeTab", "clipboardWrite"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/index.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; connect-src 'self' http://localhost:3000;"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["dashboard/index.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
