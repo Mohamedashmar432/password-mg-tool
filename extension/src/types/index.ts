@@ -47,7 +47,13 @@ export type MessageType =
   | 'GET_VAULT_BLOB'
   | 'RESTORE_VAULT'
   | 'BULK_ADD_ENTRIES'
-  | 'VERIFY_MASTER_PASSWORD';
+  | 'VERIFY_MASTER_PASSWORD'
+  | 'REGISTER_BIOMETRIC'
+  | 'BIOMETRIC_UNLOCK'
+  | 'BIOMETRIC_STATUS'
+  | 'SENSITIVE_ACTION_AUTH'
+  | 'GET_SESSION_SETTINGS'
+  | 'UPDATE_SESSION_SETTINGS';
 
 export interface ExtensionMessage<T = unknown> {
   type: MessageType;
@@ -111,4 +117,57 @@ export interface DetectedForm {
   passwordField: HTMLInputElement | null;
   confirmField: HTMLInputElement | null;
   form: HTMLFormElement;
+}
+
+// --- Biometric / WebAuthn ---
+
+export interface BiometricAuth {
+  id: 'biometric';
+  credentialId: ArrayBuffer;
+  prfSalt: ArrayBuffer;
+  wrappedVaultKey: ArrayBuffer;
+  wrappedVaultIv: ArrayBuffer;
+  biometricEnabled: boolean;
+}
+
+export interface SessionData {
+  id: 'session';
+  lastUnlock: number;
+  lockTimeout: number;           // milliseconds, default 300000 (5 min)
+  requireAuthBeforeAutofill: boolean;
+  requireAuthBeforeReveal: boolean;
+}
+
+export type DomainRiskLevel = 'high' | 'medium' | 'low';
+
+export interface RegisterBiometricPayload {
+  prfOutput: ArrayBuffer;
+  credentialId: ArrayBuffer;
+  prfSalt: ArrayBuffer;
+}
+
+export interface BiometricUnlockPayload {
+  prfOutput: ArrayBuffer;
+}
+
+export interface BiometricStatusPayload {
+  enrolled: boolean;
+  biometricEnabled: boolean;
+  credentialId?: ArrayBuffer;
+  prfSalt?: ArrayBuffer;
+}
+
+export interface SensitiveActionAuthPayload {
+  action: 'view' | 'copy' | 'export' | 'restore' | 'autofill';
+  hostname?: string;
+}
+
+export interface SensitiveActionAuthResult {
+  required: boolean;
+}
+
+export interface UpdateSessionSettingsPayload {
+  lockTimeout?: number;
+  requireAuthBeforeAutofill?: boolean;
+  requireAuthBeforeReveal?: boolean;
 }
