@@ -28,9 +28,28 @@
   let importResult: BulkAddEntriesResult | null = null;
   let importLoading = false;
 
+  // ── Sensitive action auth ────────────────────────────────────────────────
+
+  async function checkSensitiveAuth(action: 'export' | 'restore'): Promise<boolean> {
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'SENSITIVE_ACTION_AUTH',
+        payload: { action },
+      });
+      return resp.required === true;
+    } catch {
+      return false;
+    }
+  }
+
   // ── Export ───────────────────────────────────────────────────────────────
 
-  function startExport(fmt: 'csv' | 'json') {
+  async function startExport(fmt: 'csv' | 'json') {
+    const needed = await checkSensitiveAuth('export');
+    if (needed) {
+      const confirmed = window.confirm('Export requires verification — confirm?');
+      if (!confirmed) return;
+    }
     exportFormat = fmt;
     masterPasswordInput = '';
     passwordError = '';

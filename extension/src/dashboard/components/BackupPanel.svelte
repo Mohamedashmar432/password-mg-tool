@@ -123,8 +123,26 @@
     authTab = tab; authError = ''; password = ''; confirmPassword = '';
   }
 
+  // ── Sensitive action auth ─────────────────────────────────────────────────
+  async function checkSensitiveAuth(action: 'export' | 'restore'): Promise<boolean> {
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'SENSITIVE_ACTION_AUTH',
+        payload: { action },
+      });
+      return resp.required === true;
+    } catch {
+      return false;
+    }
+  }
+
   // ── Backup ────────────────────────────────────────────────────────────────
   async function handleBackup(): Promise<void> {
+    const needed = await checkSensitiveAuth('export');
+    if (needed) {
+      const confirmed = window.confirm('Export requires verification. Your vault is unlocked — confirm export?');
+      if (!confirmed) return;
+    }
     backupLoading = true; backupError = ''; backupSuccess = '';
     try {
       const session = await getSession();
@@ -150,6 +168,11 @@
 
   async function handleRestore(): Promise<void> {
     if (!restorePassword.trim()) { restoreError = 'Enter your master password'; return; }
+    const needed = await checkSensitiveAuth('restore');
+    if (needed) {
+      const confirmed = window.confirm('Restore requires verification. Your vault is unlocked — confirm restore?');
+      if (!confirmed) return;
+    }
     restoreLoading = true; restoreError = '';
     try {
       const session = await getSession();
