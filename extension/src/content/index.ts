@@ -108,24 +108,67 @@ function showBiometricHint(highRisk: boolean): void {
     ? 'Banking/crypto site — click below to autofill securely'
     : 'Saved password found for this site';
 
-  shadow.innerHTML = `
-    <style>${BIOMETRIC_NOTIFICATION_STYLES}</style>
-    <div class="wrap">
-      <div class="header">
-        <div class="brand"><div class="z-icon">Z</div>ZeroVault</div>
-        <button class="close" id="x">&#10005;</button>
-      </div>
-      <div class="body">
-        <div class="badge">${badge}</div>
-        <div class="msg">${msg}</div>
-        <button class="btn" id="fill">
-          <span class="btn-icon">🔑</span>
-          Unlock &amp; Fill with Windows Hello
-        </button>
-      </div>
-      <div class="progress"><div class="bar"></div></div>
-    </div>
-  `;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = BIOMETRIC_NOTIFICATION_STYLES;
+  shadow.appendChild(styleEl);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wrap';
+
+  const header = document.createElement('div');
+  header.className = 'header';
+
+  const brand = document.createElement('div');
+  brand.className = 'brand';
+  const zIcon = document.createElement('div');
+  zIcon.className = 'z-icon';
+  zIcon.textContent = 'Z';
+  brand.appendChild(zIcon);
+  const brandText = document.createElement('div');
+  brandText.textContent = 'ZeroVault';
+  brand.appendChild(brandText);
+  header.appendChild(brand);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'close';
+  closeBtn.id = 'x';
+  closeBtn.textContent = '✕';
+  header.appendChild(closeBtn);
+  wrap.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'body';
+
+  const badgeEl = document.createElement('div');
+  badgeEl.className = 'badge';
+  badgeEl.textContent = badge;
+  body.appendChild(badgeEl);
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'msg';
+  msgEl.textContent = msg;
+  body.appendChild(msgEl);
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.id = 'fill';
+  const btnIcon = document.createElement('span');
+  btnIcon.className = 'btn-icon';
+  btnIcon.textContent = '🔑';
+  btn.appendChild(btnIcon);
+  const btnText = document.createTextNode('Unlock & Fill with Windows Hello');
+  btn.appendChild(btnText);
+  body.appendChild(btn);
+
+  const progress = document.createElement('div');
+  progress.className = 'progress';
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  progress.appendChild(bar);
+  body.appendChild(progress);
+
+  wrap.appendChild(body);
+  shadow.appendChild(wrap);
 
   const dismiss = (): void => { clearTimeout(timer); host.remove(); };
 
